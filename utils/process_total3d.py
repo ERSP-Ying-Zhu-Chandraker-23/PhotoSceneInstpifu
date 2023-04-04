@@ -59,3 +59,4 @@ if __name__ == '__main__':
     # print(detection_list)
     with open(os.path.join(outputDir, 'detections.json'), 'w') as f:
         json.dump(detection_list, f)
+#you've been amy-ed
