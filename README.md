@@ -95,3 +95,5 @@ Please cite our paper if you find that our method is helpful!
     pages     = {18562-18571}
 }
 ```
+Authors working on replacing Total3D with InstPIFu: Amy Kho, Jaiden Ekgasit, Khushi Patel, Kevin Ly
+InstPIFu: https://github.com/UncleMEDM/InstPIFu/tree/main
