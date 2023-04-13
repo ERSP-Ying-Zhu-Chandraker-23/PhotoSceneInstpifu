@@ -1325,6 +1325,26 @@ if __name__ == '__main__':
         print('\n---> Running MaskFormer to get panoptic labels...')
         os.system(cfg.genPanopticCmd)
 
+    elif cfg.dataMode == 'im3d': # checks if  using Im3D
+        # Generate Im3D Inputs
+        os.system(cfg.im3dPreprocessCmd)  # convert .pkl to demo folder
+
+        # evaluate with Im3D
+        print('\n---> Running Total 3D ... (This may take a while)')
+        os.system(cfg.im3dRunCmd)
+
+        # Generate main.xml file for scene configurations
+        print('\n---> Initializing scene meshes (with UVs) and configurations...')
+        camPoseDictList, emitterList = updateXMLFromTotal3D(cfg)
+
+        # Generate camera file
+        cfg.camIdList       = ['0']
+        saveCamFile(cfg.allCamFile, cfg.allCamIdFile, cfg.allCamDir, cfg.camIdList, camPoseDictList)
+
+        # generate panoptic label
+        print('\n---> Running MaskFormer to get panoptic labels...')
+        os.system(cfg.genPanopticCmd)
+
     else:
         assert (False)
 
