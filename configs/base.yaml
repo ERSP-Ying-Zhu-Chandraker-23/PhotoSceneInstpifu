@@ -1,5 +1,5 @@
 # preprocess parameters
-dataMode: total3d
+dataMode: im3d
 # renderPartId: true
 # renderNormal: true
 # renderUV: true
