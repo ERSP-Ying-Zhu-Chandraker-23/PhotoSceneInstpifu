@@ -60,6 +60,8 @@ def load_cfg(cfg_root):
     cfg.inputDir = osp.join(cfg.inputDir, cfg.dataMode)
     cfg.outputDir = osp.join(cfg.outputDir, cfg.dataMode)
 
+    # if dataMode == 'im3D', then inputDir = data/im3D and outputDir = outputs/im3D
+
     # define and create preprocess folders
     cfg.scene                   = 'scene%s' % cfg.sceneId
     cfg.sceneDir                = osp.join(cfg.outputDir    , cfg.scene)
@@ -185,6 +187,24 @@ def load_cfg(cfg_root):
         cfg.labelMapFile     = osp.join('txt', 'sunrgbd2ade20kAdd1.txt')
         cfg.gtMaskDir        = None
         cfg.xmlSrcFile       = osp.join(cfg.xmlDir     , 'main_src.xml')
+    
+    if cfg.dataMode == 'im3d':
+        cfg.im3dInputDir     = osp.join(cfg.inputDir, 'inputs')
+        cfg.im3dInputFile    = osp.join(cfg.inputDir, 'inputs', '%s.pkl' % cfg.sceneId)
+        cfg.im3dOutputDir    = osp.join(cfg.inputDir, 'outputs', str(cfg.sceneId))  # total 3d preprocessed result
+        cfg.srcCamFile       = osp.join(cfg.preprocessDir, 'cam_src.txt')
+        cfg.panopticSrcDir   = osp.join(cfg.preprocessDir, 'panoptic')
+        cfg.meshSrcSaveDir   = osp.join(cfg.preprocessDir, 'meshesSrc')  # Input
+        cfg.photoSrcDir      = osp.join(cfg.preprocessDir, 'photoSrc')
+        cfg.photoSavePath    = osp.join(cfg.photoSrcDir, '0.png')  # Invrender net assumes .png
+        cfg.semLabById       = osp.join(cfg.panopticSrcDir, 'semantic', '%d.png')  # idx
+        cfg.insLabById          = osp.join(cfg.panopticSrcDir, 'instance', '%d.png')  # idx
+        cfg.labelMapFile     = osp.join('txt', 'sunrgbd2ade20kAdd1.txt')
+        cfg.gtMaskDir        = None
+        cfg.xmlSrcFile       = osp.join(cfg.xmlDir     , 'main_src.xml')
+    
+
+
 
     if cfg.gtMaskDir is not None:  # use provided part masks
         assert (osp.exists(cfg.gtMaskDir))
@@ -192,10 +212,20 @@ def load_cfg(cfg_root):
 
     # Command prefix
     cfg.total3dPreprocessCmdPre = 'python3 utils/process_total3d.py --input_pkl %s'  # cfg.total3dInputFile
+    cfg.im3dPreprocessCmdPre = 'python3 utils/process_total3d.py --input_pkl %s'  # cfg.total3dInputFile
+
     cfg.total3dRunCmdPre \
         = 'cd %s; mkdir -p %s; ' % (cfg.total3dRoot, osp.join('external', 'pyTorchChamferDistance', 'build')) \
         + 'python3 main.py configs/total3d.yaml --mode demo --demo_path %s ' \
         + '> %s; ' % osp.join(cfg.logDir, 'total3D.txt') \
+        + 'cd %s' % cfg.repoDir  # total 3d dir, data dir, repo
+
+    # making Im3D/external/pyTorchChamferDistance/build may not be necessary
+    # TODO: streamline out/total3d/2932904u238942398u/out_config.yaml
+    cfg.im3dRunCmdPre \
+        = 'cd %s; mkdir -p %s; ' % (cfg.im3dRoot, osp.join('external', 'pyTorchChamferDistance', 'build')) \
+        + 'CUDA_VISIBLE_DEVICES=0 xvfb-run -a -s "-screen 0 800x600x24" python3 main.py out/total3d/20110611514267/out_config.yaml --mode demo --demo_path %s ' \
+        + '> %s; ' % osp.join(cfg.logDir, 'im3D.txt') \
         + 'cd %s' % cfg.repoDir  # total 3d dir, data dir, repo
     cfg.blenderApplyUvCmdPre = 'blender -b -P photoscene/applyUV.py -- %s %s > tmp.txt; rm tmp.txt'
     # inputPath, outputPath
@@ -263,6 +293,13 @@ def load_cfg(cfg_root):
         demo_path = osp.join(cfg.total3dInputDir, str(cfg.sceneId))
         cfg.total3dRunCmd    = cfg.total3dRunCmdPre % (demo_path)
         cfg.genPanopticCmd   = cfg.maskFormerCmdPre % (cfg.photoSavePath, cfg.panopticSrcDir)
+    if cfg.datamode == 'im3d':
+        cfg.im3dPreprocessCmd = cfg.im3dPreprocessCmdPre % cfg.im3dInputFile
+    # TODO: define im3dInputFile, im3dInputDir
+        demo_path = osp.join(cfg.im3dInputDir, str(cfg.sceneId))
+        cfg.im3dRunCmd    = cfg.im3dRunCmdPre % (demo_path)
+        cfg.genPanopticCmd   = cfg.maskFormerCmdPre % (cfg.photoSavePath, cfg.panopticSrcDir)
+
 
     return cfg
 
