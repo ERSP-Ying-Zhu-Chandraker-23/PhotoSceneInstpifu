@@ -293,7 +293,7 @@ def load_cfg(cfg_root):
         demo_path = osp.join(cfg.total3dInputDir, str(cfg.sceneId))
         cfg.total3dRunCmd    = cfg.total3dRunCmdPre % (demo_path)
         cfg.genPanopticCmd   = cfg.maskFormerCmdPre % (cfg.photoSavePath, cfg.panopticSrcDir)
-    if cfg.datamode == 'im3d':
+    if cfg.dataMode == 'im3d':
         cfg.im3dPreprocessCmd = cfg.im3dPreprocessCmdPre % cfg.im3dInputFile
     # TODO: define im3dInputFile, im3dInputDir
         demo_path = osp.join(cfg.im3dInputDir, str(cfg.sceneId))
