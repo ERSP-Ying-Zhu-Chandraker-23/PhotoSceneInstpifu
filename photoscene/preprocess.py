@@ -1173,8 +1173,14 @@ def updateXMLFromTotal3D(cfg):
     objInfoDict, matInfoDict = {}, {}
     shapeCnt, bsdfCnt = saveLayoutMesh(objInfoDict, matInfoDict, layoutArr, cfg.meshSrcSaveDir,
         cfg.blenderApplyUvCmdPre)
-    shapeCnt, bsdfCnt = saveObjectMesh(objInfoDict, matInfoDict, objDictList, cfg.im3dOutputDir,
-        cfg.meshSrcSaveDir, cfg.blenderApplyUvCmdPre, shapeCntInit=shapeCnt, bsdfCntInit=bsdfCnt)
+
+    if cfg.dataMode == 'total3d':
+        shapeCnt, bsdfCnt = saveObjectMesh(objInfoDict, matInfoDict, objDictList, cfg.total3dOutputDir,
+            cfg.meshSrcSaveDir, cfg.blenderApplyUvCmdPre, shapeCntInit=shapeCnt, bsdfCntInit=bsdfCnt)
+    elif cfg.dataMode == 'im3d':
+        shapeCnt, bsdfCnt = saveObjectMesh(objInfoDict, matInfoDict, objDictList, cfg.total3dOutputDir,
+            cfg.meshSrcSaveDir, cfg.blenderApplyUvCmdPre, shapeCntInit=shapeCnt, bsdfCntInit=bsdfCnt)
+
     emitterList = saveCeilingAreaLightMesh(layoutArr, cfg.meshSrcSaveDir)
 
     fovX = processInputPhoto(rgbImg, cfg.photoSavePath, intrinsicMat)
@@ -1346,6 +1352,8 @@ if __name__ == '__main__':
         # evaluate with Im3D
         print('\n---> Running Total 3D ... (This may take a while)')
         os.system(cfg.im3dRunCmd)
+
+        print("Im3D has run")
 
         # Generate main.xml file for scene configurations
         print('\n---> Initializing scene meshes (with UVs) and configurations...')
