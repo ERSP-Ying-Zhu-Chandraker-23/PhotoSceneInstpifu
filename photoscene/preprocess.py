@@ -1173,7 +1173,7 @@ def updateXMLFromTotal3D(cfg):
     objInfoDict, matInfoDict = {}, {}
     shapeCnt, bsdfCnt = saveLayoutMesh(objInfoDict, matInfoDict, layoutArr, cfg.meshSrcSaveDir,
         cfg.blenderApplyUvCmdPre)
-    shapeCnt, bsdfCnt = saveObjectMesh(objInfoDict, matInfoDict, objDictList, cfg.total3dOutputDir,
+    shapeCnt, bsdfCnt = saveObjectMesh(objInfoDict, matInfoDict, objDictList, cfg.im3dOutputDir,
         cfg.meshSrcSaveDir, cfg.blenderApplyUvCmdPre, shapeCntInit=shapeCnt, bsdfCntInit=bsdfCnt)
     emitterList = saveCeilingAreaLightMesh(layoutArr, cfg.meshSrcSaveDir)
 
