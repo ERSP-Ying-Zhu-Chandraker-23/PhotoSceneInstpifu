@@ -1153,10 +1153,18 @@ def updateXMLFromTotal3D(cfg):
 
     rgbImg           = data['rgb_img']
     intrinsicMat     = data['camera']['K']
-    # Total3D Output
-    layoutFile       = osp.join(cfg.total3dOutputDir, 'layout.mat')  # Input
-    bdbFile          = osp.join(cfg.total3dOutputDir, 'bdb_3d.mat')  # Input
-    extrinsicFile    = osp.join(cfg.total3dOutputDir, 'r_ex.mat')  # Input
+
+
+    if cfg.dataMode == 'total3d':
+        # Total3D Output
+        layoutFile       = osp.join(cfg.total3dOutputDir, 'layout.mat')  # Input
+        bdbFile          = osp.join(cfg.total3dOutputDir, 'bdb_3d.mat')  # Input
+        extrinsicFile    = osp.join(cfg.total3dOutputDir, 'r_ex.mat')  # Input
+    elif cfg.dataMode == 'im3d':
+        # Im3D Output
+        layoutFile       = osp.join(cfg.im3dOutputDir, 'layout.mat')  # Input
+        bdbFile          = osp.join(cfg.im3dOutputDir, 'bdb_3d.mat')  # Input
+        extrinsicFile    = osp.join(cfg.im3dOutputDir, 'r_ex.mat')  # Input
 
     layoutArr        = scipy.io.loadmat(layoutFile)['layout']  # 8 x 3, ceiling: lu, ld, rd, ru / floor: lu, ld, rd, ru
     rot_cam          = scipy.io.loadmat(extrinsicFile)['cam_R']  # 3 x 3
