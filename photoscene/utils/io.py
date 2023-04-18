@@ -224,7 +224,7 @@ def load_cfg(cfg_root):
     # TODO: streamline out/total3d/2932904u238942398u/out_config.yaml
     cfg.im3dRunCmdPre \
         = 'cd %s; mkdir -p %s; ' % (cfg.im3dRoot, osp.join('external', 'pyTorchChamferDistance', 'build')) \
-        + 'CUDA_VISIBLE_DEVICES=0 xvfb-run -a -s "-screen 0 800x600x24" python3 main.py out/total3d/20110611514267/out_config.yaml --mode demo --demo_path %s ' \
+        + 'CUDA_VISIBLE_DEVICES=0 main.py out/total3d/20110611514267/out_config.yaml --mode demo --demo_path %s ' \
         + '> %s; ' % osp.join(cfg.logDir, 'im3D.txt') \
         + 'cd %s' % cfg.repoDir  # total 3d dir, data dir, repo
     cfg.blenderApplyUvCmdPre = 'blender -b -P photoscene/applyUV.py -- %s %s > tmp.txt; rm tmp.txt'
