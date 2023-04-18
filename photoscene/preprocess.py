@@ -1350,7 +1350,7 @@ if __name__ == '__main__':
         os.system(cfg.im3dPreprocessCmd)  # convert .pkl to demo folder
 
         # evaluate with Im3D
-        print('\n---> Running Total 3D ... (This may take a while)')
+        print('\n---> Running Im3D ... (This may take a while)')
         os.system(cfg.im3dRunCmd)
 
         print("Im3D has run")
