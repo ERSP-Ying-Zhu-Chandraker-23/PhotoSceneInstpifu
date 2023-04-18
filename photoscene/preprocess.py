@@ -1143,11 +1143,11 @@ def updateXMLFromTotal3D(cfg):
         return camInfoDict
     
     # Total3D Input
-    if cfg.datamode == 'total3d':
+    if cfg.dataMode == 'total3d':
         with open(cfg.total3dInputFile, 'rb') as f:
             data = pickle.load(f)
     # Im3D Input
-    elif cfg.datamode == 'im3d':
+    elif cfg.dataMode == 'im3d':
         with open(cfg.im3dInputFile, 'rb') as f:
             data = pickle.load(f)
 
