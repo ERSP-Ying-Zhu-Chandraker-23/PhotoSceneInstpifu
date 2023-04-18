@@ -1415,7 +1415,7 @@ if __name__ == '__main__':
     _ = saveNewBaselineXML(cfg, baseline='median')
 
     # Save Single Light XML Files from main_median.xml
-    if cfg.dataMode == 'total3d':
+    if cfg.dataMode == 'total3d' or cfg.dataMode == 'im3d':
         genSingleLightAreaXMLs(cfg, emitterList)
     else:
         assert (False)
