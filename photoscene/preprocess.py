@@ -1141,10 +1141,16 @@ def updateXMLFromTotal3D(cfg):
         camInfoDict['up']     = '%f %f %f' % (up[0]    , up[1]    , up[2])
 
         return camInfoDict
-
+    
     # Total3D Input
-    with open(cfg.total3dInputFile, 'rb') as f:
-        data = pickle.load(f)
+    if cfg.datamode == 'total3d':
+        with open(cfg.total3dInputFile, 'rb') as f:
+            data = pickle.load(f)
+    # Im3D Input
+    elif cfg.datamode == 'im3d':
+        with open(cfg.im3dInputFile, 'rb') as f:
+            data = pickle.load(f)
+
     rgbImg           = data['rgb_img']
     intrinsicMat     = data['camera']['K']
     # Total3D Output
