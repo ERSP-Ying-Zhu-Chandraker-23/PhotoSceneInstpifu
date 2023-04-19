@@ -9,8 +9,8 @@ initImgWidth: 640
 isOverWriteSampledView: false
 singleLightImgHeight: 240
 singleLightImgWidth: 320
-imgHeight: 240
-imgWidth: 320
+imgHeight: 1200 
+imgWidth: 1600
 nSamplePerPixel: 2048
 nSamplePerPixelSingle: 16
 nSamplePerPixelLight: 16384
