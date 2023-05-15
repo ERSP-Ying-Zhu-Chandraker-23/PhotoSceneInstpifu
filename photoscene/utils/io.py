@@ -6,6 +6,7 @@ import os
 from PIL import Image
 import torch as th
 import yaml
+import meshio 
 
 
 def load_cfg(cfg_root):
@@ -202,7 +203,21 @@ def load_cfg(cfg_root):
         cfg.labelMapFile     = osp.join('txt', 'sunrgbd2ade20kAdd1.txt')
         cfg.gtMaskDir        = None
         cfg.xmlSrcFile       = osp.join(cfg.xmlDir     , 'main_src.xml')
-    
+
+    if cfg.dataMode == 'instpifu':
+        cfg.instpifuInputDir  = osp.join(cfg.inputDir, 'inputs')
+        cfg.instpifuInputFile = osp.join(cfg.inputDir, 'inputs', '%s.pkl' % cfg.sceneId)
+        cfg.instpifuOutputDir = osp.join(cfg.inputDir, 'outputs', str(cfg.sceneId))
+        cfg.srcCamFile       = osp.join(cfg.preprocessDir, 'cam_src.txt')
+        cfg.panopticSrcDir   = osp.join(cfg.preprocessDir, 'panoptic')
+        cfg.meshSrcSaveDir   = osp.join(cfg.preprocessDir, 'meshesSrc')  # Input
+        cfg.photoSrcDir      = osp.join(cfg.preprocessDir, 'photoSrc')
+        cfg.photoSavePath    = osp.join(cfg.photoSrcDir, '0.png')  # Invrender net assumes .png
+        cfg.semLabById       = osp.join(cfg.panopticSrcDir, 'semantic', '%d.png')  # idx
+        cfg.insLabById          = osp.join(cfg.panopticSrcDir, 'instance', '%d.png')  # idx
+        cfg.labelMapFile     = osp.join('txt', 'sunrgbd2ade20kAdd1.txt')
+        cfg.gtMaskDir        = None
+        cfg.xmlSrcFile       = osp.join(cfg.xmlDir     , 'main_src.xml')
 
 
 
@@ -213,6 +228,7 @@ def load_cfg(cfg_root):
     # Command prefix
     cfg.total3dPreprocessCmdPre = 'python3 utils/process_total3d.py --input_pkl %s'  # cfg.total3dInputFile
     cfg.im3dPreprocessCmdPre = 'python3 utils/process_total3d.py --input_pkl %s'  # cfg.total3dInputFile
+    cfg.instpifuPreprocessCmdPre = 'python3 utils/process_total3d.py --input_pkl %s'
 
     cfg.total3dRunCmdPre \
         = 'cd %s; mkdir -p %s; ' % (cfg.total3dRoot, osp.join('external', 'pyTorchChamferDistance', 'build')) \
@@ -227,6 +243,14 @@ def load_cfg(cfg_root):
         + 'CUDA_VISIBLE_DEVICES=0 python3 main.py out/total3d/20110611514267/out_config.yaml --mode demo --demo_path %s ' \
         + '> %s; ' % osp.join(cfg.logDir, 'im3D.txt') \
         + 'cd %s' % cfg.repoDir  # total 3d dir, data dir, repo
+
+    
+    cfg.instpifu3dRunCmdPre \
+        = 'cd %s; mkdir -p %s; ' % (cfg.instpifuRoot, osp.join('external', 'pyTorchChamferDistance', 'build')) \
+        + 'python3 demo.py --test rendertaskxxxx' \
+        + '> %s; ' % osp.join(cfg.logDir, 'instpifu.txt') \
+        + 'cd %s' % cfg.repoDir  # total 3d dir, data dir, repo
+
     cfg.blenderApplyUvCmdPre = 'blender -b -P photoscene/applyUV.py -- %s %s > tmp.txt; rm tmp.txt'
     # inputPath, outputPath
     cfg.maskFormerCmdPre \
@@ -288,6 +312,7 @@ def load_cfg(cfg_root):
         (cfg.xmlFile, cfg.allCamFile, osp.join(cfg.depthRenderDir, 'im.hdr'))
     cfg.invrenderCmd    = cfg.invrenderCmdPre % \
         (cfg.photoSrcDir, cfg.initPerPixelImListFile, cfg.invRenderDir)
+
     if cfg.dataMode == 'total3d':
         cfg.total3dPreprocessCmd = cfg.total3dPreprocessCmdPre % cfg.total3dInputFile
         demo_path = osp.join(cfg.total3dInputDir, str(cfg.sceneId))
@@ -295,9 +320,13 @@ def load_cfg(cfg_root):
         cfg.genPanopticCmd   = cfg.maskFormerCmdPre % (cfg.photoSavePath, cfg.panopticSrcDir)
     if cfg.dataMode == 'im3d':
         cfg.im3dPreprocessCmd = cfg.im3dPreprocessCmdPre % cfg.im3dInputFile
-    # TODO: define im3dInputFile, im3dInputDir
         demo_path = osp.join(cfg.im3dInputDir, str(cfg.sceneId))
         cfg.im3dRunCmd    = cfg.im3dRunCmdPre % (demo_path)
+        cfg.genPanopticCmd   = cfg.maskFormerCmdPre % (cfg.photoSavePath, cfg.panopticSrcDir)
+    if cfg.dataMode == 'instpifu':
+        cfg.instpifuPreprocessCmd = cfg.instpifuPreprocessCmdPre % cfg.instpifuInputFile
+        demo_path = osp.join(cfg.instpifuInputDir, str(cfg.sceneId))
+        cfg.instpifuRunCmd = cfg.instpifuRunCmdPre % (demo_path)
         cfg.genPanopticCmd   = cfg.maskFormerCmdPre % (cfg.photoSavePath, cfg.panopticSrcDir)
 
 
@@ -693,3 +722,8 @@ def getMaterialSavePathDict(cfg, mode, ext='png'):
             fileList.append(fullPath)
         matSavePathDict[partName] = fileList
     return matSavePathDict
+
+def plyToObj(dir):
+    for filename in os.listdir(dir):
+        mesh = meshio.read(filename)
+        mesh.write(filename[0:len(filename) - 4] + "obj")

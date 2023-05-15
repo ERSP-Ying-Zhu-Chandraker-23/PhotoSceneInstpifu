@@ -21,6 +21,9 @@ total3dRoot: third_party/Total3D
 # Im3D Dir
 im3dRoot: third_party/Im3D
 
+# InstPIFu Dir
+instpifuRoot: third_party/InstPIFu
+
 # data root
 inputDir: data
 outputDir: outputs
