@@ -12,7 +12,7 @@ import torch as th
 from scipy import ndimage
 
 from utils.io import load_cfg, loadBinary, readModelStrIdDict, readViewDict, readViewList, readNormal, \
-    loadInvRenderData, modifyMaterialName, plyToObj
+    loadInvRenderData, modifyMaterialName
 from utils.xml import createXmlFromInfoDict, saveNewModelIdFileAndXmlFile, saveNewWhiteXML, getBsdfIdDict, \
     saveNewBaselineXML, genSingleLightAreaXMLs
 from utils.render import renderPass
@@ -780,6 +780,7 @@ def selectViewAndSaveMask(cfg, candidateCamIdList, bsdfIdDict, imWidth, imHeight
                             snMask = snInsMask
 
                 im = Image.fromarray( (snMask.squeeze().cpu().detach().numpy().astype(float) * 255.0).astype(np.uint8))
+                os.makedirs(os.path.dirname(cfg.maskPhotoByNameId % (mat, camId)), exist_ok=True)
                 im.save(cfg.maskPhotoByNameId % (mat, camId))
 
         saveViewDict(selectedViewNoMaskDictFile, selectedViewNoMaskDict)
@@ -1003,7 +1004,12 @@ def updateXMLFromTotal3D(cfg):
         shapeCnt, bsdfCnt = shapeCntInit, bsdfCntInit
         for objIdx, objDict in enumerate(objDictList):
             basis, coeffs, centroid, classId = objDict[0][0]  # basis, coeffs, centroid, classId
-            objSrc = osp.join(total3dOutputDir, '%d_%d.obj' % (objIdx, classId[0]))
+            
+
+            ## SWAP WHICH LINE IS COMMENTED FOR IM3D ##
+            #objSrc = osp.join(total3dOutputDir, '%d_%d.obj' % (objIdx, classId[0]))
+            objSrc = osp.join(total3dOutputDir, '%d.obj' % (objIdx))
+            
             objUV = osp.join(meshSaveDir, osp.basename(objSrc))
             os.system(blenderApplyUvCmdPre % (objSrc, objUV))
             bsdfName = '%d_%d_part0' % (classId[0], objIdx)
@@ -1150,6 +1156,9 @@ def updateXMLFromTotal3D(cfg):
     elif cfg.dataMode == 'im3d':
         with open(cfg.im3dInputFile, 'rb') as f:
             data = pickle.load(f)
+    elif cfg.dataMode == 'instpifu':
+        with open(cfg.instpifuInputFile, 'rb') as f:
+            data = pickle.load(f)
 
     rgbImg           = data['rgb_img']
     intrinsicMat     = data['camera']['K']
@@ -1165,6 +1174,10 @@ def updateXMLFromTotal3D(cfg):
         layoutFile       = osp.join(cfg.im3dOutputDir, 'layout.mat')  # Input
         bdbFile          = osp.join(cfg.im3dOutputDir, 'bdb_3d.mat')  # Input
         extrinsicFile    = osp.join(cfg.im3dOutputDir, 'r_ex.mat')  # Input
+    elif cfg.dataMode == 'instpifu':
+        layoutFile       = osp.join(cfg.instpifuOutputDir, 'layout.mat')  # Input
+        bdbFile          = osp.join(cfg.instpifuOutputDir, 'bdb_3d.mat')  # Input
+        extrinsicFile    = osp.join(cfg.instpifuOutputDir, 'r_ex.mat')  # Input
 
     layoutArr        = scipy.io.loadmat(layoutFile)['layout']  # 8 x 3, ceiling: lu, ld, rd, ru / floor: lu, ld, rd, ru
     rot_cam          = scipy.io.loadmat(extrinsicFile)['cam_R']  # 3 x 3
@@ -1180,304 +1193,14 @@ def updateXMLFromTotal3D(cfg):
     elif cfg.dataMode == 'im3d':
         shapeCnt, bsdfCnt = saveObjectMesh(objInfoDict, matInfoDict, objDictList, cfg.im3dOutputDir,
             cfg.meshSrcSaveDir, cfg.blenderApplyUvCmdPre, shapeCntInit=shapeCnt, bsdfCntInit=bsdfCnt)
+    elif cfg.dataMode == 'instpifu':
+        shapeCnt, bsdfCnt = saveObjectMesh(objInfoDict, matInfoDict, objDictList, cfg.instpifuOutputDir,
+            cfg.meshSrcSaveDir, cfg.blenderApplyUvCmdPre, shapeCntInit=shapeCnt, bsdfCntInit=bsdfCnt)
 
     emitterList = saveCeilingAreaLightMesh(layoutArr, cfg.meshSrcSaveDir)
 
     fovX = processInputPhoto(rgbImg, cfg.photoSavePath, intrinsicMat)
 
-    camInfoDict = processCamera(rot_cam)
-
-    cv2.imwrite(cfg.envFile, np.ones((240, 320, 3)) * 100)
-
-    sensorInfoDict = {'fov': str(fovX), 'fovAxis': 'x', 'width': '320', 'height': '240',
-                        'sampler_type': 'adaptive', 'sample_count': '128'}
-    envInfoDict = {'envPath': cfg.envFile, 'scale': '1.0'}
-    xmlInfoDict = {'shape': objInfoDict, 'bsdf': matInfoDict, 'sensor': sensorInfoDict, 'emitter': envInfoDict}
-    _ = createXmlFromInfoDict(cfg.xmlSrcFile, xmlInfoDict)
-
-    saveSelectedCam(camInfoDict, cfg.srcCamFile)
-
-    return [camInfoDict], emitterList
-
-def updateXMLFromInstpifu(cfg):
-    def saveLayoutMesh(objInfoDict, matInfoDict, layoutArr, meshSaveDir, blenderApplyUvCmdPre, shapeCntInit=0,
-            bsdfCntInit=0):
-        def vToLine(v):
-            return 'v %f %f %f\n' % (v[0], v[1], v[2])
-
-        def newObjInfo(shapeName, objPath, matList):
-            objInfo = {'shape_id': shapeName, 'objPath': objPath, 'matList': matList,
-                    'scale': np.array([1.0, 1.0, 1.0]), 'isEmitter': False, 'emitterVal': None,
-                    'transform_opList': ['scale'],
-                    'transform_attribList': [{'x': '1.000000', 'y': '1.000000', 'z': '1.000000'}],
-                    'isAlignedLight': False, 'isContainer': False}
-            return objInfo
-
-        def newWhiteMatInfo(bsdfName):
-            matInfo = {'bsdf_id': bsdfName, 'isHomo': True, 'albedo': '0.900 0.900 0.900', 'roughness': '0.700',
-                    'albedoScale': '1.000 1.000 1.000', 'roughnessScale': '1.000', 'uvScale': '1.0'}
-            return matInfo
-
-        vc1, vc2, vc3, vc4 = layoutArr[0], layoutArr[1], layoutArr[2], layoutArr[3]
-        vf1, vf2, vf3, vf4 = layoutArr[4], layoutArr[5], layoutArr[6], layoutArr[7]
-
-        layoutMeshSaveDir = meshSaveDir
-        if not osp.exists(layoutMeshSaveDir):
-            os.system('mkdir -p %s' % layoutMeshSaveDir)
-
-        shapeCnt, bsdfCnt = shapeCntInit, bsdfCntInit
-
-        # floor
-        floorInitPath = osp.join(layoutMeshSaveDir, 'scene_floor_init.obj')
-        floorPath = osp.join(layoutMeshSaveDir, 'scene_floor.obj')
-        with open(floorInitPath, 'w') as f:
-            for v in [vf1, vf2, vf3, vf4]:
-                f.write(vToLine(v))
-            f.write('usemtl 2_floor_part0\n')
-            f.write('f %d %d %d\n' % (1, 2, 3))
-            f.write('f %d %d %d\n' % (3, 4, 1))
-        os.system(blenderApplyUvCmdPre % (floorInitPath, floorPath))
-        print('Floor mesh saved at %s' % floorPath)
-        objInfoDict[shapeCnt] = newObjInfo('2_floor_object', floorPath, ['2_floor_part0'])
-        shapeCnt += 1
-        matInfoDict[bsdfCnt] = newWhiteMatInfo('2_floor_part0')
-        bsdfCnt += 1
-
-        # ceiling
-        ceilingInitPath = osp.join(layoutMeshSaveDir, 'scene_ceiling_init.obj')
-        ceilingPath = osp.join(layoutMeshSaveDir, 'scene_ceiling.obj')
-        with open(ceilingInitPath, 'w') as f:
-            for v in [vc1, vc2, vc3, vc4]:
-                f.write(vToLine(v))
-            f.write('usemtl 22_ceiling_part0\n')
-            f.write('f %d %d %d\n' % (1, 2, 3))
-            f.write('f %d %d %d\n' % (3, 4, 1))
-        os.system(blenderApplyUvCmdPre % (ceilingInitPath, ceilingPath))
-        print('Ceiling mesh saved at %s' % ceilingPath)
-        objInfoDict[shapeCnt] = newObjInfo('22_ceiling_object', ceilingPath, ['22_ceiling_part0'])
-        shapeCnt += 1
-        matInfoDict[bsdfCnt] = newWhiteMatInfo('22_ceiling_part0')
-        bsdfCnt += 1
-
-        # wall
-        wallInitPath = osp.join(layoutMeshSaveDir, 'scene_wall_init.obj')
-        wallPath = osp.join(layoutMeshSaveDir, 'scene_wall.obj')
-        with open(wallInitPath, 'w') as f:
-            for v in [vc1, vc2, vc3, vc4, vf1, vf2, vf3, vf4]:
-                f.write(vToLine(v))
-            f.write('usemtl 1_wall_part0\n')
-            f.write('f %d %d %d\n' % (1, 5, 6))
-            f.write('f %d %d %d\n' % (6, 2, 1))
-            f.write('usemtl 1_wall_part1\n')
-            f.write('f %d %d %d\n' % (2, 6, 7))
-            f.write('f %d %d %d\n' % (7, 3, 2))
-            f.write('usemtl 1_wall_part2\n')
-            f.write('f %d %d %d\n' % (3, 7, 8))
-            f.write('f %d %d %d\n' % (8, 4, 3))
-            f.write('usemtl 1_wall_part3\n')
-            f.write('f %d %d %d\n' % (4, 8, 5))
-            f.write('f %d %d %d\n' % (5, 1, 4))
-        os.system(blenderApplyUvCmdPre % (wallInitPath, wallPath))
-        print('Wall mesh saved at %s' % wallPath)
-        objInfoDict[shapeCnt] = newObjInfo('1_wall_object', wallPath,
-            ['1_wall_part0', '1_wall_part1', '1_wall_part2', '1_wall_part3'])
-        shapeCnt += 1
-        matInfoDict[bsdfCnt] = newWhiteMatInfo('1_wall_part0')
-        bsdfCnt += 1
-        matInfoDict[bsdfCnt] = newWhiteMatInfo('1_wall_part1')
-        bsdfCnt += 1
-        matInfoDict[bsdfCnt] = newWhiteMatInfo('1_wall_part2')
-        bsdfCnt += 1
-        matInfoDict[bsdfCnt] = newWhiteMatInfo('1_wall_part3')
-        bsdfCnt += 1
-
-        return shapeCnt, bsdfCnt
-
-    def saveObjectMesh(objInfoDict, matInfoDict, total3dOutputDir, meshSaveDir, blenderApplyUvCmdPre,
-            shapeCntInit=0, bsdfCntInit=0):
-        def newObjInfo(shapeName, objPath, matList, opList, attribList):
-            assert (len(opList) == len(attribList))
-            objInfo = {'shape_id': shapeName, 'objPath': objPath, 'matList': matList,
-                    'scale': np.array([1.0, 1.0, 1.0]), 'isEmitter': False, 'emitterVal': None,
-                    'transform_opList': opList, 'transform_attribList': attribList,
-                    'isAlignedLight': False, 'isContainer': False}
-            return objInfo
-
-        def newWhiteMatInfo(bsdfName):
-            matInfo = {'bsdf_id': bsdfName, 'isHomo': True, 'albedo': '0.900 0.900 0.900', 'roughness': '0.700',
-                    'albedoScale': '1.000 1.000 1.000', 'roughnessScale': '1.000', 'uvScale': '1.0'}
-            return matInfo
-
-        def getVert(objSrc):
-            vList = []
-            with open(objSrc, 'r') as f:
-                for line in f.readlines():
-                    items = line.strip().split()
-                    if items[0] == 'v':
-                        vList.append(np.array([float(items[1]), float(items[2]), float(items[3])]))
-            vArr = np.stack(vList, axis=0)
-            return vArr
-
-        def getMinMax(vArr):
-            return np.amin(vArr, axis=0), np.amax(vArr, axis=0)
-        
-        # initialize counts to 0
-        shapeCnt, bsdfCnt = shapeCntInit, bsdfCntInit
-
-        plyToObj(total3dOutputDir)
-        
-        # iterate through files in meshesSrc
-        for file in os.listdir(total3dOutputDir):
-            filename = os.fsdecode(file)
-            
-            # skip bg.obj and any .ply files
-            if filename == 'bg.obj' or (not filename.endswith('obj')):
-                continue
-
-            filenameSplit = filename.split()
-
-            objSrc = osp.join(total3dOutputDir, filename)
-            objUV = osp.join(meshSaveDir, filenameSplit[0])
-            os.system(blenderApplyUvCmdPre % (objSrc, objUV))
-            bsdfName = filenameSplit[0] + '_part0'
-            
-            
-            # no transformations
-            opList = ['translate', 'scale', 'rotate', 'rotate', 'rotate', 'translate']
-            attribList = [ {'x': 0, 'y': 0, 'z': 0},
-                            {'x': 1, 'y': 1, 'z': 1},
-                            {'angle': 0, 'x': '1.0', 'y': '0.0', 'z': '0.0'},
-                            {'angle': 0, 'x': '0.0', 'y': '1.0', 'z': '0.0'},
-                            {'angle': 0, 'x': '0.0', 'y': '0.0', 'z': '1.0'},
-                            {'x': 0, 'y': 0, 'z': 0} ] 
-
-            # keep same object name
-            objInfoDict[shapeCnt]\
-                = newObjInfo('%s_object' % (filenameSplit[0]), objUV, [bsdfName], opList, attribList)
-
-
-            shapeCnt += 1
-            matInfoDict[bsdfCnt] = newWhiteMatInfo(bsdfName)
-            bsdfCnt += 1
-
-        return shapeCnt, bsdfCnt
-
-     def saveCeilingAreaLightMesh(layoutArr, meshSaveDir, lDist=3, lSizeRatio=0.1):
-        vArr = layoutArr[0:4, :]
-        verts = th.from_numpy(vArr).type(th.FloatTensor)  # nVert x 3
-        U, S, V = th.pca_lowrank(verts, q=None, center=True, niter=2)
-        axis1, axis2 = V[:, 0], V[:, 1]
-        axis1 = axis1 / th.norm(axis1)
-        axis2 = axis2 / th.norm(axis2)
-        vP1 = th.sum(verts * axis1.unsqueeze(0), dim=1)  # proj to first principal axis
-        length1 = (th.max(vP1) - th.min(vP1)) * 0.9
-        vP2 = th.sum(verts * axis2.unsqueeze(0), dim=1)  # proj to second principal axis
-        length2 = (th.max(vP2) - th.min(vP2)) * 0.9
-        center = (th.max(verts, dim=0)[0] + th.min(verts, dim=0)[0]) / 2.0
-        nLight1 = th.div(length1 + 0.5 * lDist, lDist, rounding_mode='floor')
-        nLight1 = nLight1 if nLight1 >= 1 else 1
-        nLight2 = th.div(length2 + 0.5 * lDist, lDist, rounding_mode='floor')
-        nLight2 = nLight2 if nLight2 >= 1 else 1
-        corner = center - 0.5 * length1 * axis1 - 0.5 * length2 * axis2
-        step1 = length1 / nLight1
-        step2 = length2 / nLight2
-        lSize1 = step1 * lSizeRatio
-        lSize2 = step2 * lSizeRatio
-
-        emitterList = []
-        lightCnt = 0
-        for n1 in range(int(nLight1)):
-            for n2 in range(int(nLight2)):
-                newVList = []
-                newFList = []
-                pos = corner + (0.5 + n1) * step1 * axis1 + (0.5 + n2) * step2 * axis2
-                v1 = pos + lSize1 * axis1 + lSize2 * axis2
-                v2 = pos + lSize1 * axis1 - lSize2 * axis2
-                v3 = pos - lSize1 * axis1 - lSize2 * axis2
-                v4 = pos - lSize1 * axis1 + lSize2 * axis2
-                newVList += [v1, v2, v3, v4]
-                newFList.append(np.array([1, 2, 3]))
-                newFList.append(np.array([1, 3, 4]))
-
-                saveRoot = osp.join(meshSaveDir, '%s_light%d.obj' % ('scene', lightCnt))
-                if not osp.exists(osp.dirname(saveRoot)):
-                    os.system('mkdir -p %s' % osp.dirname(saveRoot))
-                with open(saveRoot, 'w') as f:
-                    f.write('')
-                # write v
-                for idx, vv in enumerate(newVList):
-                    line = 'v %f %f %f' % (vv[0], vv[1], vv[2] - 0.001)
-                    with open(saveRoot, 'a') as f:
-                        f.write('{}\n'.format(line))
-
-                # write f
-                for face in newFList:
-                    v1, v2, v3 = face[0], face[1], face[2]
-                    line = 'f %d %d %d' % (v1, v2, v3)
-                    with open(saveRoot, 'a') as f:
-                        f.write('{}\n'.format(line))
-                print('New light mesh saved at %s' % saveRoot)
-                lightCnt += 1
-
-                emitterList.append({'objPath': saveRoot, 'area': lSize1 * lSize2})
-
-        return emitterList
-
-    def processInputPhoto(rgbImg, photoSavePath, intrinsicMat):
-        # Process input photo #
-        img = rgbImg
-        H, W, _ = img.shape
-        if W > (H * 4 / 3):  # clip x
-            res = int((W - (H * 4 / 3)) // 2)
-            img = img[:, res:W - res, :]
-        elif W < (H * 4 / 3):  # clip y
-            res = int((H - (W * 3 / 4)) // 2)
-            img = img[res:H - res, :, :]
-        im = Image.fromarray(img)
-        if not osp.exists(osp.dirname(photoSavePath)):
-            os.makedirs(osp.dirname(photoSavePath))
-        im.save(photoSavePath)
-        HNew, WNew, CNew = img.shape
-
-        focusX, prinX = intrinsicMat[0, 0], intrinsicMat[0, 2]
-        # focusY, prinY = intrinsicMat[1, 1], intrinsicMat[1, 2]
-        # tan = float(prinX) / (0.5 * float(focusX) + 0.5 * float(focusY))
-        tan = float(prinX) / float(focusX)
-        fovX = np.rad2deg(np.arctan(WNew * tan / W)) * 2
-
-        return fovX
-
-    def processCamera(rot_cam):
-
-        origin = np.array([0, 0, 0])
-        target = np.matmul(rot_cam, np.array([1, 0, 0]))
-        up = np.matmul(rot_cam, np.array([0, 1, 0]))
-
-        camInfoDict = {}
-        camInfoDict['target'] = '%f %f %f' % (target[0], target[1], target[2])
-        camInfoDict['origin'] = '%f %f %f' % (origin[0], origin[1], origin[2])
-        camInfoDict['up']     = '%f %f %f' % (up[0]    , up[1]    , up[2])
-
-        return camInfoDict            
-        
-    with open(cfg.instpifuInputFile, 'rb') as f:
-        data = pickle.load(f)
-
-    rgbImg           = data['rgb_img']
-    intrinsicMat     = data['camera']['K']
-        
-    objInfoDict, matInfoDict = {}, {}
-    # TODO: figure out layoutArr
-    shapeCnt, bsdfCnt = saveLayoutMesh(objInfoDict, matInfoDict, layoutArr, cfg.meshSrcSaveDir,
-        cfg.blenderApplyUvCmdPre) 
-    shapeCnt, bsdfCnt = saveObjectMesh(objInfoDict, matInfoDict, cfg.im3dOutputDir,
-        cfg.meshSrcSaveDir, cfg.blenderApplyUvCmdPre, shapeCntInit=shapeCnt, bsdfCntInit=bsdfCnt)
-
-    emitterList = saveCeilingAreaLightMesh(layoutArr, cfg.meshSrcSaveDir)
-
-    fovX = processInputPhoto(rgbImg, cfg.photoSavePath, intrinsicMat)
-
-    #TODO: figure out rot_cam
     camInfoDict = processCamera(rot_cam)
 
     cv2.imwrite(cfg.envFile, np.ones((240, 320, 3)) * 100)
@@ -1615,7 +1338,7 @@ if __name__ == '__main__':
     th.manual_seed(cfg.seed)
     np.random.seed(cfg.seed)
     random.seed(cfg.seed)
-
+    
     # SUN RGB-D Inputs #
     if cfg.dataMode == 'total3d':  # total 3D
 
@@ -1660,29 +1383,38 @@ if __name__ == '__main__':
         print('\n---> Running MaskFormer to get panoptic labels...')
         os.system(cfg.genPanopticCmd)
     elif cfg.dataMode == 'instpifu':
+        
+        
         # Generate InstPIFu Inputs
         os.system(cfg.instpifuPreprocessCmd)
 
         # evaluate with InstPIFu
         print('\n---> Running InstPIFu ... (This may take a while)')
         os.system(cfg.instpifuRunCmd)
-
+        
+        a = cfg.instpifuDet + "/" + str(cfg.sceneId) + "/*"
+        b = cfg.instpifuOutputDir
+        os.system("cp -r %s %s" % (a, b))
+        
         print("InstPIFu run completed")
         
         #Generate main.xml file for scene configurations
         print('\n---> Initializing scene meshes (with UVs) and configurations...')
-        camPoseDictList, emitterList = updateXMLFromInstpifu(cfg)
+        camPoseDictList, emitterList = updateXMLFromTotal3D(cfg)
 
         # Generate camera file
         cfg.camIdList       = ['0']
         saveCamFile(cfg.allCamFile, cfg.allCamIdFile, cfg.allCamDir, cfg.camIdList, camPoseDictList)
 
+        
+
         # generate panoptic label
         print('\n---> Running MaskFormer to get panoptic labels...')
+        print(cfg.genPanopticCmd)
         os.system(cfg.genPanopticCmd)
     else:
         assert (False)
-
+    
     labelMapDict    = readLabelMapDict(cfg.labelMapFile)
 
     # Save new models.txt file to each scene, and
@@ -1691,6 +1423,11 @@ if __name__ == '__main__':
     _, _ = saveNewModelIdFileAndXmlFile(
         cfg.xmlSrcFile, cfg.meshSaveDir, modelIdFileNew=cfg.modelIdFile, xmlFileNew=cfg.xmlFile)
     _ = saveNewWhiteXML(cfg.xmlFile, imWidth=cfg.initImgWidth, imHeight=cfg.initImgHeight, outPath=cfg.xmlWhiteFile)
+        
+    ## DEBUG CODE ##
+    #cfg.camIdList = ['0']
+    ## DEBUG CODE ##
+    print(cfg.renderPartIdInitCmd)
 
     # save a new xml file with white materials
     print('\n---> Rendering the initial scene labels ...')
@@ -1728,7 +1465,7 @@ if __name__ == '__main__':
     _ = saveNewBaselineXML(cfg, baseline='median')
 
     # Save Single Light XML Files from main_median.xml
-    if cfg.dataMode == 'total3d' or cfg.dataMode == 'im3d':
+    if cfg.dataMode == 'total3d' or cfg.dataMode == 'im3d' or cfg.dataMode == "instpifu":
         genSingleLightAreaXMLs(cfg, emitterList)
     else:
         assert (False)

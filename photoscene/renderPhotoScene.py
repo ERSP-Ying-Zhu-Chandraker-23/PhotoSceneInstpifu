@@ -43,7 +43,9 @@ if __name__ == '__main__':
             objMatUVDictTemp = json.load(fp)
             for k, v in objMatUVDictTemp.items():
                 objMatUVDict[int(k)] = v
-        objInfoDictNewUV = uvApplyAndSaveObjects(objInfoDict, objMatUVDict, objSaveDir, isSave=False)
+        print("objMatUVDict:", objMatUVDict)
+        # vanilla photoscene: isSave = False
+        objInfoDictNewUV = uvApplyAndSaveObjects(objInfoDict, objMatUVDict, objSaveDir, isSave=True)
 
     objInfoDictNewUV2 = {}
     for objID, objInfo in objInfoDictNewUV.items():

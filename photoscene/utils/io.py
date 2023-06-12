@@ -6,7 +6,6 @@ import os
 from PIL import Image
 import torch as th
 import yaml
-import meshio 
 
 
 def load_cfg(cfg_root):
@@ -243,11 +242,11 @@ def load_cfg(cfg_root):
         + 'CUDA_VISIBLE_DEVICES=0 python3 main.py out/total3d/20110611514267/out_config.yaml --mode demo --demo_path %s ' \
         + '> %s; ' % osp.join(cfg.logDir, 'im3D.txt') \
         + 'cd %s' % cfg.repoDir  # total 3d dir, data dir, repo
-
+      
     
-    cfg.instpifu3dRunCmdPre \
+    cfg.instpifuRunCmdPre \
         = 'cd %s; mkdir -p %s; ' % (cfg.instpifuRoot, osp.join('external', 'pyTorchChamferDistance', 'build')) \
-        + 'python3 demo.py --test rendertaskxxxx' \
+        + 'python3 demo_sunrgbd.py --testid %s' \
         + '> %s; ' % osp.join(cfg.logDir, 'instpifu.txt') \
         + 'cd %s' % cfg.repoDir  # total 3d dir, data dir, repo
 
@@ -326,7 +325,7 @@ def load_cfg(cfg_root):
     if cfg.dataMode == 'instpifu':
         cfg.instpifuPreprocessCmd = cfg.instpifuPreprocessCmdPre % cfg.instpifuInputFile
         demo_path = osp.join(cfg.instpifuInputDir, str(cfg.sceneId))
-        cfg.instpifuRunCmd = cfg.instpifuRunCmdPre % (demo_path)
+        cfg.instpifuRunCmd = cfg.instpifuRunCmdPre % (cfg.sceneId)
         cfg.genPanopticCmd   = cfg.maskFormerCmdPre % (cfg.photoSavePath, cfg.panopticSrcDir)
 
 
@@ -722,8 +721,3 @@ def getMaterialSavePathDict(cfg, mode, ext='png'):
             fileList.append(fullPath)
         matSavePathDict[partName] = fileList
     return matSavePathDict
-
-def plyToObj(dir):
-    for filename in os.listdir(dir):
-        mesh = meshio.read(filename)
-        mesh.write(filename[0:len(filename) - 4] + "obj")

@@ -234,7 +234,9 @@ if __name__ == '__main__':
             refImg = matPartMaskJoint * blendedWarpedRef + (~matPartMaskJoint) * refImg
 
         AList = []
+        print(lightList)
         for lName in lightList:
+            print(lName)
             imPath = cfg.imageSLPathByLightId % (lName, vId)
             img = readImgRaw(imPath, imW=cfg.imgWidth, imH=cfg.imgHeight)
             imgSelect = img.view(3, -1)[:, mask.view(-1)]  # 3 x nSelectPix

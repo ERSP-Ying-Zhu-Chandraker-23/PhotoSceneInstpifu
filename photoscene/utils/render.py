@@ -53,6 +53,7 @@ def renderPass(cfg, renderDir, passName, xmlFile, camFile, camIdList,
             assert (False)
 
         print('Rendering %s at %s ... ' % (passName, outDir), end='')
+        print(cmd)
         print('(This may take a while)') if passName in ['image', 'light'] else print('')
         os.system(cmd)
 
@@ -68,6 +69,7 @@ def renderPass(cfg, renderDir, passName, xmlFile, camFile, camIdList,
         for j in range(cNum):
             i = cNum - j - 1
             old = osp.join(outDir, '%s_%d.%s' % (fn, i + 1, ext))
+            print(old)
             assert (osp.exists(old))
             new = osp.join(tmpDir, '%s_%s.%s' % (fn, camIdList[i], ext))
             cmd = 'mv %s %s' % (old, new)

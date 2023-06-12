@@ -1,5 +1,5 @@
 # preprocess parameters
-dataMode: im3d
+dataMode: instpifu
 # renderPartId: true
 # renderNormal: true
 # renderUV: true
@@ -9,8 +9,8 @@ initImgWidth: 640
 isOverWriteSampledView: false
 singleLightImgHeight: 240
 singleLightImgWidth: 320
-imgHeight: 1200 
-imgWidth: 1600
+imgHeight: 240 
+imgWidth: 320 
 nSamplePerPixel: 2048
 nSamplePerPixelSingle: 16
 nSamplePerPixelLight: 16384
@@ -18,7 +18,7 @@ isOverWriteSelectedView: false
 
 # graph selection parameters
 usekNN: true
-graphSelectBatchSize: 6
+graphSelectBatchSize: 6 
 graphSelectToGray: false
 kNum : 21
 nSamplePerGraph: 10

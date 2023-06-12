@@ -1,7 +1,7 @@
 # Renderer
 #Gamer nation
-OptixRoot: third_party/OptiX
-rendererRoot: third_party/OptiX_Renderer
+OptixRoot: /amydata/PhotoScene/third_party/OptiX
+rendererRoot: /amydata/PhotoScene/third_party/OptiX_Renderer
 
 # Substance Designer install root
 toolkitRoot: /amydata/Substance_Designer
@@ -22,7 +22,8 @@ total3dRoot: third_party/Total3D
 im3dRoot: third_party/Im3D
 
 # InstPIFu Dir
-instpifuRoot: third_party/InstPIFu
+instpifuRoot: /amydata/InstPIFu2.0
+instpifuDet: /amydata/InstPIFu2.0/checkpoints/sunrgbd_det_results/visualization
 
 # data root
 inputDir: data
