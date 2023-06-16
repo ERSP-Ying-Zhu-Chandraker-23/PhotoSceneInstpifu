@@ -15,6 +15,8 @@ git clone --recursive https://github.com/ViLab-UCSD/PhotoScene.git
 cd PhotoScene
 ```
 
+Additionally, clone InstPIFu. Set InstPIFuRoot in configs/roots.yaml to the folder. We recommend cloning InstPIFu into third_party where all other third party repositories are.
+
 2. Install [OptiX 5.1.1](https://developer.nvidia.com/designworks/optix/downloads/5.1.1/linux64) under `third_party/OptiX`. We assume OptiX install directory is `third_party/OptiX/NVIDIA-OptiX-SDK-5.1.1-linux64`. Note that the version should be 5.1.1 upon which our renderer is built.
 
 3. Download [Total3D](https://github.com/yinyunie/Total3DUnderstanding), [MaskFormer](https://github.com/facebookresearch/MaskFormer), [InvRenderNet](https://github.com/lzqsd/InverseRenderingOfIndoorScene) pretrained model by running the following script.
